@@ -13,7 +13,7 @@ experimentalblocks = c(1:6) #if necessary, to exclude data after n experimental 
 ##### Load data file #####
 
 library(readxl)
-AnalisisANTI_Vea_D_Last1 <- read_excel("Dropbox/Universidad/Doctorado/Papers/ANTI-VEA-D/Preciados datos de la ANTI-VEA-D/Last/Survey y Survey+Task/AnalisisANTI-Vea-D_Last1.xlsx", sheet = "Raw_Data")
+AnalisisANTI_Vea_D_Last1 <- read_excel("./Inputs/Data_ANTI-VeaD.xlsx", sheet = "Raw_Data")
 data_raw = AnalisisANTI_Vea_D_Last1
 
 #####Identify outliers participants######
