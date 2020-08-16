@@ -4,6 +4,7 @@ if(!require(pacman)){install.packages("pacman")}
 
 p_load(readxl, rockchalk, plyr, Hmisc, tidyverse)
 
+
 ##### Set data filters #####
 
 filterRTmin = 200 #Exclude responses below 200 ms
