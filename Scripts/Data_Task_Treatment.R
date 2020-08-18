@@ -94,17 +94,21 @@ rm(x)
 data_rt = data_raw %>% 
   filter(BlockList %in% experimentalblocks, `Vigilancia[Trial]`=="NoVigilancia", Target.ACC==1, Target.RT>filterRTmin, Target.RT<filterRTmax)
   
-# Generate data table for RT analysys #
+# Generate data table for RT analyses #
 
 data_rt_table = data_rt %>% 
-  group_by(`Tono[Trial]`, `ValidezClave[Trial]`, `Congruency[Trial]`, Subject) %>% 
+  group_by(Subject, `Tono[Trial]`, `ValidezClave[Trial]`, `Congruency[Trial]`) %>% 
   summarise(Target.RT=mean(Target.RT)) %>% 
   mutate(Condition = paste(`Tono[Trial]`,`ValidezClave[Trial]`,`Congruency[Trial]`, sep = "_"))
+data_rt_table_wide = as.data.frame(data_rt_table) %>%
+  reshape(idvar = "Subject", timevar = "Condition", drop = c("Tono[Trial]", "ValidezClave[Trial]", "Congruency[Trial]"), direction = "wide")
 
 # Compute attentional scores #
 
-y = data_rt_table %>% 
-  reshape(idvar = "Subject", timevar = "Condition", drop = c("Tono[Trial]", "ValidezClave[Trial]", "Congruency[Trial]"), direction = "wide")
+x = data_rt %>% 
+  group_by(Subject, `Tono[Trial]`) %>% 
+  summarise(Alerting_RT=mean(Target.RT))
+  
 
 x = aggregate(Target.RT ~ `Tono[Trial]` + Subject, data_rt, FUN = mean)
 x = reshape(x, idvar = "Subject", timevar = "Tono[Trial]", direction = "wide")
