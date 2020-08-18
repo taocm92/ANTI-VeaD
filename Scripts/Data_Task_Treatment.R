@@ -1,9 +1,8 @@
-######Install and/or load packages#######
+######Install and/or load packages######
 
 if(!require(pacman)){install.packages("pacman")}
-
-p_load(readxl, rockchalk, plyr, Hmisc, tidyverse)
-
+library(pacman) #This package ("pacman") serves to install and load other packages simultaneously
+p_load(readxl, rockchalk, plyr, Hmisc, tidyverse) #Installing and loading the rest of the packages
 
 ##### Set data filters #####
 
@@ -13,9 +12,9 @@ experimentalblocks = c(1:6) #if necessary, to exclude data after n experimental 
 
 ##### Load data file #####
 
-library(readxl)
-AnalisisANTI_Vea_D_Last1 <- read_excel("./Inputs/Data_ANTI-VeaD.xlsx", sheet = "Raw_Data")
-data_raw = AnalisisANTI_Vea_D_Last1
+data_raw <- read_excel("./Inputs/Data_ANTI-VeaD.xlsx", sheet = "Raw_Data")
+data_processed = data_raw %>% 
+  distinct(Subject)
 
 #####Identify outliers participants######
 
@@ -23,36 +22,67 @@ data_raw = AnalisisANTI_Vea_D_Last1
 
   #General task: Participants with more than 25% errors in ANTI trials
 
-x=subset(data_raw, data_raw$BlockList %in% experimentalblocks & data_raw$`Vigilancia[Trial]`=="NoVigilancia")
-x=aggregate(Target.Error ~ Subject, x, FUN = mean)
-outliers_performance = unique(x$Subject[which(x$Target.Error > .25)]) #This object represents the subjects that have been excluded
-n_excludedperformance = length(outliers_performance)# This object is the number of subjects that have been excluded
+x = data_raw %>%
+  filter (BlockList %in% experimentalblocks, `Vigilancia[Trial]`=="NoVigilancia") %>% 
+  group_by(Subject) %>% 
+  summarise(Target.Error=mean(Target.Error))
+outliers_performance = x %>% #This object represents the subjects that have been excluded
+  filter (Target.Error > .25) %>% 
+  select(Subject) %>% 
+  pull()
+n_excluded_bcperformance = length(outliers_performance) # This object is the number of subjects that have been excluded
+
+x = x %>% 
+  transmute(Validity_GeneralTask=ifelse(Target.Error > .25, "No","Yes"))
+data_processed = cbind(data_processed,x)
+
 rm(x)
 
   #Irrelevant distractor trials# Participants with more than 25% errors in distractor present condition
 
-x=subset(data_raw, data_raw$BlockList %in% experimentalblocks & data_raw$`Vigilancia[Trial]`=="DP")
-x=aggregate(Target.Error ~ Subject, x, FUN = mean)
-outliers_performance_IDtrials = unique(x$Subject[which(x$Target.Error > .25)]) #This object represents the subjects that have been excluded
-n_excludedperformance_IDtrials = length(outliers_performance_IDtrials)# This object is the number of subjects that have been excluded
+x = data_raw %>% 
+  filter (BlockList %in% experimentalblocks, `Vigilancia[Trial]`=="DP") %>% 
+  group_by(Subject) %>% 
+  summarise(Target.Error=mean(Target.Error))
+outliers_performance_IDtrials = x %>% #This object represents the subjects that have been excluded
+  filter(Target.Error > .25) %>% 
+  select(Subject) %>% 
+  pull()
+n_excluded_bcperformance_IDtrials = length(outliers_performance_IDtrials)# This object is the number of subjects that have been excluded
+
+x = x %>% 
+  transmute(Validity_IDtrials=ifelse(Target.Error > .25, "No","Yes"))
+data_processed = cbind(data_processed,x)
+
+
 rm(x)
 
   #Outlier trials#
 
   #ANTI RT#
 
-x = data_raw[-which(data_raw$Subject %in% outliers_performance),]
-x=subset(x, x$BlockList %in% experimentalblocks & x$`Vigilancia[Trial]`=="NoVigilancia")
-filterRT_percentage_errors = round(100*sum(!(x$Target.ACC == 1))/sum(x$Target.ACC == 1), digits=4) # Percentage of incorrect trials (outlier subjects excluded)
-filterRT_percentage_time = round(100*sum(!(x$Target.RT > (filterRTmin) & x$Target.RT < filterRTmax))/sum(x$Target.RT > (filterRTmin) & x$Target.RT < filterRTmax), digits=4) # Percentage of trials excluded after RT filter (outlier subjects excluded)
+x = data_raw %>% 
+  filter(!Subject %in% outliers_performance) %>%
+  filter(BlockList %in% experimentalblocks, `Vigilancia[Trial]`=="NoVigilancia")
+filterRT_percentage_errors = x %>% # Percentage of incorrect trials (outlier subjects excluded)
+  summarise(round(100*sum(!Target.ACC == 1)/sum(Target.ACC == 1), digits = 4)) %>% 
+  pull()
+filterRT_percentage_time = x %>% # Percentage of trials excluded after RT filter (outlier subjects excluded)
+  summarise(round(100*sum(!(x$Target.RT > (filterRTmin) & x$Target.RT < filterRTmax))/sum(x$Target.RT > (filterRTmin) & x$Target.RT < filterRTmax), digits=4)) %>% 
+  pull()
 rm(x)
 
   #ID RT#
 
-x = data_raw[-which(data_raw$Subject %in% c(outliers_performance,outliers_performance_IDtrials)),]
-x=subset(x, x$BlockList %in% experimentalblocks & x$`Vigilancia[Trial]`=="NoVigilancia")
-filterRT_percentage_errors_ID = round(100*sum(!(x$Target.ACC == 1))/sum(x$Target.ACC == 1), digits=4) # Percentage of incorrect trials (outlier subjects excluded)
-filterRT_percentage_time_ID = round(100*sum(!(x$Target.RT > (filterRTmin) & x$Target.RT < filterRTmax))/sum(x$Target.RT > (filterRTmin) & x$Target.RT < filterRTmax), digits=4) # Percentage of trials excluded after RT filter (outlier subjects excluded)
+x = data_raw %>% 
+  filter(!Subject %in% c(outliers_performance, outliers_performance_IDtrials)) %>%
+  filter(BlockList %in% experimentalblocks, `Vigilancia[Trial]`=="DP")
+filterRT_percentage_errors_ID = x %>% # Percentage of incorrect trials (outlier subjects excluded)
+  summarise(round(100*sum(!Target.ACC == 1)/sum(Target.ACC == 1), digits = 4)) %>% 
+  pull()
+filterRT_percentage_time_ID = x %>% # Percentage of trials excluded after RT filter (outlier subjects excluded)
+  summarise(round(100*sum(!(x$Target.RT > (filterRTmin) & x$Target.RT < filterRTmax))/sum(x$Target.RT > (filterRTmin) & x$Target.RT < filterRTmax), digits=4)) %>% 
+  pull()
 rm(x)
 
 #### ANTI Trials ####
@@ -61,25 +91,20 @@ rm(x)
 
 # Select appropriate trials (Only valid subjects, ANTI trials, only experimental blocks drop errors, filter RT) #
 
-data_rt = data_raw[which(data_raw$`Vigilancia[Trial]`=="NoVigilancia"),]
-data_rt = data_rt[which(data_rt$BlockList %in% experimentalblocks),]
-
-filterRT_percentage_errors = round(100*sum(!(data_rt$Target.ACC == 1))/sum(data_rt$Target.ACC == 1), digits=4) # Percentage of incorrect trials (outlier subjects excluded)
-data_rt = data_rt[which(data_rt$Target.ACC ==1),]
-
-filterRT_percentage_time = round(100*sum(!(data_rt$Target.RT > (filterRTmin) & data_rt$Target.RT < filterRTmax))/sum(data_rt$Target.RT > (filterRTmin) & data_rt$Target.RT < filterRTmax), digits=4) # Percentage of trials excluded after RT filter (outlier subjects and incorrect trials excluded)
-data_rt = data_rt[which(data_rt$Target.RT > (filterRTmin) & data_rt$Target.RT < filterRTmax),]
-
+data_rt = data_raw %>% 
+  filter(BlockList %in% experimentalblocks, `Vigilancia[Trial]`=="NoVigilancia", Target.ACC==1, Target.RT>filterRTmin, Target.RT<filterRTmax)
+  
 # Generate data table for RT analysys #
 
-data_rt_table = aggregate(Target.RT ~ `Tono[Trial]` + `ValidezClave[Trial]` + `Congruency[Trial]` + Subject, data = data_rt, FUN = mean)
+data_rt_table = data_rt %>% 
+  group_by(`Tono[Trial]`, `ValidezClave[Trial]`, `Congruency[Trial]`, Subject) %>% 
+  summarise(Target.RT=mean(Target.RT)) %>% 
+  mutate(Condition = paste(`Tono[Trial]`,`ValidezClave[Trial]`,`Congruency[Trial]`, sep = "_"))
 
 # Compute attentional scores #
 
-data_rt_table = cbind(data_rt_table, "Condition" = paste(data_rt_table$`Tono[Trial]`, data_rt_table$`ValidezClave[Trial]`, data_rt_table$`Congruency[Trial]`, sep = "_"))
-data_rt_table = data_rt_table[order(data_rt_table$Condition),]
-data_rt_table = data_rt_table[order(data_rt_table$Subject),]
-data_rt_table_wide = reshape(data_rt_table, idvar = "Subject", timevar = "Condition", drop = c("Tono[Trial]", "ValidezClave[Trial]", "Congruency[Trial]"), direction = "wide")
+y = data_rt_table %>% 
+  reshape(idvar = "Subject", timevar = "Condition", drop = c("Tono[Trial]", "ValidezClave[Trial]", "Congruency[Trial]"), direction = "wide")
 
 x = aggregate(Target.RT ~ `Tono[Trial]` + Subject, data_rt, FUN = mean)
 x = reshape(x, idvar = "Subject", timevar = "Tono[Trial]", direction = "wide")
