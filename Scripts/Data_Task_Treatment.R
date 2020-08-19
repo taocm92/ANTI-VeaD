@@ -100,202 +100,201 @@ data_rt_table = data_rt %>%
   group_by(Subject, `Tono[Trial]`, `ValidezClave[Trial]`, `Congruency[Trial]`) %>% 
   summarise(Target.RT=mean(Target.RT)) %>% 
   mutate(Condition = paste(`Tono[Trial]`,`ValidezClave[Trial]`,`Congruency[Trial]`, sep = "_"))
-data_rt_table_wide = as.data.frame(data_rt_table) %>%
+data_rt_table = as.data.frame(data_rt_table) %>% 
   reshape(idvar = "Subject", timevar = "Condition", drop = c("Tono[Trial]", "ValidezClave[Trial]", "Congruency[Trial]"), direction = "wide")
 
 # Compute attentional scores #
 
-x = data_rt %>% 
+#Overall
+
+x = as.data.frame(data_rt) %>% 
+  group_by(Subject) %>% 
+  summarise(Overall_RT=mean(Target.RT)) %>% 
+  ungroup(Subject) %>% 
+  select(-Subject)
+data_processed=bind_cols(data_processed,x)
+
+#Alerting
+x = as.data.frame(data_rt) %>% 
   group_by(Subject, `Tono[Trial]`) %>% 
-  summarise(Alerting_RT=mean(Target.RT))
-  
+  summarise(Target.RT=mean(Target.RT)) %>%  
+  spread(`Tono[Trial]`, Target.RT) %>% 
+  mutate(Alerting_RT = notono - tono) %>%
+  rename(notono_RT=notono,tono_RT=tono) %>% 
+  ungroup(Subject) %>% 
+  select(-Subject)
+data_processed=bind_cols(data_processed,x)
 
-x = aggregate(Target.RT ~ `Tono[Trial]` + Subject, data_rt, FUN = mean)
-x = reshape(x, idvar = "Subject", timevar = "Tono[Trial]", direction = "wide")
-x = cbind (x, RT_A = x$Target.RT.notono - x$Target.RT.tono)
-data_rt_table_wide = merge(data_rt_table_wide, subset(x, select = -c(Target.RT.notono, Target.RT.tono)), by = "Subject")
+#Orienting
+x = as.data.frame(data_rt) %>% 
+  group_by(Subject, `ValidezClave[Trial]`) %>% 
+  summarise(Target.RT=mean(Target.RT)) %>%  
+  spread(`ValidezClave[Trial]`, Target.RT) %>% 
+  mutate(Validez_RT = invalida - valida) %>%
+  rename(invalida_RT=invalida,nocue_RT=nocue,valida_RT=valida) %>% 
+  ungroup(Subject) %>% 
+  select(-Subject)
+data_processed=bind_cols(data_processed,x)
 
-x = aggregate(Target.RT ~ `ValidezClave[Trial]` + Subject, data_rt, FUN = mean)
-x = reshape(x, idvar = "Subject", timevar = "ValidezClave[Trial]", direction = "wide") 
-x = cbind (x, RT_O = x$Target.RT.invalida - x$Target.RT.valida)
-data_rt_table_wide = merge(data_rt_table_wide, subset(x, select = -c(Target.RT.invalida, Target.RT.nocue, Target.RT.valida)), by = "Subject")
-
-x = aggregate(Target.RT ~ `Congruency[Trial]` + Subject, data_rt, FUN = mean)
-x = reshape(x, idvar = "Subject", timevar = "Congruency[Trial]", direction = "wide")
-x = cbind (x, RT_EC = x$Target.RT.incongruent - x$Target.RT.congruent)
-data_rt_table_wide = merge(data_rt_table_wide, subset(x, select = -c(Target.RT.congruent, Target.RT.incongruent)), by = "Subject")
-
-x = aggregate(Target.RT ~ Subject, data_rt, FUN = mean)
-data_rt_table_wide = merge(data_rt_table_wide, x, by = "Subject")
-names(data_rt_table_wide)[which(names(data_rt_table_wide)=="Target.RT")]="RT_Overall"
+#Congruency
+x = as.data.frame(data_rt) %>% 
+  group_by(Subject, `Congruency[Trial]`) %>% 
+  summarise(Target.RT=mean(Target.RT)) %>%  
+  spread(`Congruency[Trial]`, Target.RT) %>% 
+  mutate(Congruency_RT = incongruent - congruent) %>%
+  rename(incongruent_RT=incongruent,congruent_RT=congruent) %>% 
+  ungroup(Subject) %>% 
+  select(-Subject)
+data_processed=bind_cols(data_processed,x)
 
 rm(x)
-
 
 # ACC analysis of ANTI trials #
 
 # Select appropriate trials (ANTI task, NOT drop first block) #
 
-data_acc = data_raw[which(data_raw$`Vigilancia[Trial]`=="NoVigilancia"),]
-data_acc = data_acc[which(data_acc$BlockList %in% experimentalblocks),]
+data_acc = data_raw %>% 
+  filter(BlockList %in% experimentalblocks, `Vigilancia[Trial]`=="NoVigilancia")
 
-# Generate data table for ACC analysis #
+# Generate data table for ACC (percentage errors) analysis #
 
-data_acc_table = aggregate(Target.ACC ~ `Tono[Trial]` + `ValidezClave[Trial]` + `Congruency[Trial]` + Subject, data = data_acc, FUN = mean)
-data_acc_table$Target.ACC = 100 * (1 - data_acc_table$Target.ACC)
+data_acc_table = data_acc %>% 
+  group_by(Subject, `Tono[Trial]`, `ValidezClave[Trial]`, `Congruency[Trial]`) %>% 
+  summarise(Target.ACC=(1-mean(Target.ACC))*100) %>%
+  mutate(Condition = paste(`Tono[Trial]`,`ValidezClave[Trial]`,`Congruency[Trial]`, sep = "_"))
+data_acc_table = as.data.frame(data_acc_table) %>%
+  reshape(idvar = "Subject", timevar = "Condition", drop = c("Tono[Trial]", "ValidezClave[Trial]", "Congruency[Trial]"), direction = "wide")
 
 # Compute attentional scores #
 
-data_acc_table = cbind(data_acc_table, "Condition" = paste(data_acc_table$`Tono[Trial]`, data_acc_table$`ValidezClave[Trial]`, data_acc_table$`Congruency[Trial]`, sep = "_"))
-data_acc_table = data_acc_table[order(data_acc_table$Condition),]
-data_acc_table = data_acc_table[order(data_acc_table$Subject),]
-data_acc_table_wide = reshape(data_acc_table, idvar = "Subject", timevar = "Condition", drop = c("Tono[Trial]", "ValidezClave[Trial]", "Congruency[Trial]"), direction = "wide")
+#Overall
+x = as.data.frame(data_acc) %>% 
+  group_by(Subject) %>% 
+  summarise(Overall_ACC=(1-mean(Target.ACC))*100) %>% 
+  ungroup(Subject) %>% 
+  select(-Subject)
+data_processed=bind_cols(data_processed,x)
 
-x = aggregate(100 * Target.Error ~ `Tono[Trial]` + Subject, data_acc, FUN = mean)
-x = reshape(x, idvar = "Subject", timevar = "Tono[Trial]", direction = "wide")
-names(x)[which(names(x)=="100 * Target.Error.notono")]="Target.ACC.notono"
-names(x)[which(names(x)=="100 * Target.Error.tono")]="Target.ACC.tono"
-x = cbind (x, ACC_A = x$Target.ACC.notono - x$Target.ACC.tono)
-data_acc_table_wide = merge(data_acc_table_wide, subset(x, select = -c(Target.ACC.notono, Target.ACC.tono)), by = "Subject")
+#Alerting
+x = as.data.frame(data_acc) %>% 
+  group_by(Subject, `Tono[Trial]`) %>% 
+  summarise(Target.ACC=(1-mean(Target.ACC))*100) %>%  
+  spread(`Tono[Trial]`, Target.ACC) %>% 
+  mutate(Alerting_ACC = notono - tono) %>%
+  rename(notono_ACC=notono,tono_ACC=tono) %>% 
+  ungroup(Subject) %>% 
+  select(-Subject)
+data_processed=bind_cols(data_processed,x)
 
-x = aggregate(100 * Target.Error ~ `ValidezClave[Trial]` + Subject, data_acc, FUN = mean)
-x = reshape(x, idvar = "Subject", timevar = "ValidezClave[Trial]", direction = "wide") 
-names(x)[which(names(x)=="100 * Target.Error.invalida")]="Target.ACC.invalida"
-names(x)[which(names(x)=="100 * Target.Error.nocue")]="Target.ACC.nocue"
-names(x)[which(names(x)=="100 * Target.Error.valida")]="Target.ACC.valida"
-x = cbind (x, ACC_O = x$Target.ACC.invalida - x$Target.ACC.valida)
-data_acc_table_wide = merge(data_acc_table_wide, subset(x, select = -c(Target.ACC.invalida, Target.ACC.nocue, Target.ACC.valida)), by = "Subject")
+#Orienting
+x = as.data.frame(data_acc) %>% 
+  group_by(Subject, `ValidezClave[Trial]`) %>% 
+  summarise(Target.ACC=(1-mean(Target.ACC))*100) %>%  
+  spread(`ValidezClave[Trial]`, Target.ACC) %>% 
+  mutate(Validez_ACC = invalida - valida) %>%
+  rename(invalida_ACC=invalida,nocue_ACC=nocue,valida_ACC=valida) %>% 
+  ungroup(Subject) %>% 
+  select(-Subject)
+data_processed=bind_cols(data_processed,x)
 
-x = aggregate(100 * Target.Error ~ `Congruency[Trial]` + Subject, data_acc, FUN = mean)
-x = reshape(x, idvar = "Subject", timevar = "Congruency[Trial]", direction = "wide") 
-names(x)[which(names(x)=="100 * Target.Error.incongruent")]="Target.ACC.incongruent"
-names(x)[which(names(x)=="100 * Target.Error.congruent")]="Target.ACC.congruent"
-x = cbind (x, ACC_EC = x$Target.ACC.incongruent - x$Target.ACC.congruent)
-data_acc_table_wide = merge(data_acc_table_wide, subset(x, select = -c(Target.ACC.congruent, Target.ACC.incongruent)), by = "Subject")
-
-x = aggregate(100 * Target.Error ~ Subject, data_acc, FUN = mean)
-data_acc_table_wide = merge(data_acc_table_wide, x, by = "Subject")
-names(data_acc_table_wide)[which(names(data_acc_table_wide)=="100 * Target.Error")]="ACC_Overall"
+#Congruency
+x = as.data.frame(data_acc) %>% 
+  group_by(Subject, `Congruency[Trial]`) %>% 
+  summarise(Target.ACC=(1-mean(Target.ACC))*100) %>%  
+  spread(`Congruency[Trial]`, Target.ACC) %>% 
+  mutate(Congruency_ACC = incongruent - congruent) %>%
+  rename(incongruent_ACC=incongruent,congruent_ACC=congruent) %>% 
+  ungroup(Subject) %>% 
+  select(-Subject)
+data_processed=bind_cols(data_processed,x)
 
 rm(x)
 
-
-##### Executive Vigilance (EV) #####
-###NOT ACTIVATED IN coll-martin_et.al's edition
-# EV - Mean Reaction Time and SD on Hits #
-
-# Select appropriate trials (EV task, drop errors, NOT drop first block) #
-
-#data_EVig_RT = data_raw[which(data_raw$`Vigilancia[Trial]`=="VE"),]
-#data_EVig_RT = data_EVig_RT[which(data_EVig_RT$BlockList %in% BlockList),]
-#data_EVig_RT = data_EVig_RT[which(data_EVig_RT$Target.ACC==1),]
-
-
-# Filter RT by participant and task (attention: no per condition) #
-
-#filterRT_EV_percentage = round(100*sum(!(data_EVig_RT$Target.RT > (filterRTmin) & data_EVig_RT$Target.RT < filterRTmax))/sum(data_EVig_RT$Target.RT > (filterRTmin) & data_EVig_RT$Target.RT < filterRTmax), digits=4)
-
-#data_EVig_RT = data_EVig_RT[which(data_EVig_RT$Target.RT > (filterRTmin) & data_EVig_RT$Target.RT < filterRTmax),]
-
-#data_EVig_RT_table = unique(subset(data_EVig_RT, select="Subject"))
-
-#Compute mean RT and SD of RT #
-
-#data_EVig_RT_table = merge(x = data_EVig_RT_table, y = aggregate(Target.RT ~ Subject, data = data_EVig_RT[which(data_EVig_RT$`Vigilancia[Trial]` =="VE" & data_EVig_RT$Target.ACC == 1),], FUN = mean), all.x = TRUE, all.y = TRUE, by = "Subject")
-#names(data_EVig_RT_table)[names(data_EVig_RT_table)=='Target.RT'] <- "EV_RT"
-
-#data_EVig_RT_table = merge(x = data_EVig_RT_table, y = aggregate(Target.RT ~ Subject, data = data_EVig_RT[which(data_EVig_RT$`Vigilancia[Trial]` =="VE" & data_EVig_RT$Target.ACC == 1),], FUN = sd), all.x = TRUE, all.y = TRUE, by = "Subject")
-#names(data_EVig_RT_table)[names(data_EVig_RT_table)=='Target.RT'] <- "EV_SD"
-
-
-
-
-# EV - Signal Detection Theory #
+#### EV Trials ####
 
 # Select appropriate trials (NOT drop first block) #
 
-data_EVig = data_raw[which(data_raw$BlockList %in% experimentalblocks),]
+data_EV = data_raw %>% 
+  filter(BlockList %in% experimentalblocks)
 
-data_EVig_table = unique(subset(data_EVig, select= "Subject"))
+# Compute EV scores #
 
-#Compute Hits and False Alarms #
-###NOT ACTIVATED IN coll-martin_et.al's edition
-#data_EVig_table = merge(x = data_EVig_table, y = aggregate(Target.ACC ~ Subject, data = data_EVig[which(data_EVig$`Vigilancia[Trial]`=="VE" & data_EVig$Target.ACC == 1),], FUN = length), all.x = TRUE, all.y = TRUE, by = "Subject")
-#names(data_EVig_table)[names(data_EVig_table)=='Target.ACC'] <- "EV_H"
-#data_EVig_table[is.na(data_EVig_table$EV_H), "EV_H" ] = 0
+#Hits (percentage)
+x = data_EV %>% 
+  filter(`Vigilancia[Trial]` =="VE") %>% 
+  group_by(Subject) %>% 
+  summarise(Hits_Percentage=mean(Target.ACC)*100) %>% 
+  ungroup(Subject) %>% 
+  select(-Subject)
+data_processed=bind_cols(data_processed,x)
 
+#False Alarms (percentage)  
+x = data_EV %>% 
+  filter(Trial_FA_Difficult =="YES") %>% 
+  group_by(Subject) %>% 
+  summarise(FA_Percentage=mean(FA_Difficult)*100) %>% 
+  ungroup(Subject) %>% 
+  select(-Subject)
+data_processed=bind_cols(data_processed,x)
 
-#data_EVig_table = merge(x = data_EVig_table, y = aggregate(FA_Juan ~ Subject, data = data_EVig[which(data_EVig$`Vigilancia[Trial]`=="NoVigilancia" & data_EVig$FA_Juan == 1),], FUN = length), all.x = TRUE, all.y = TRUE, by = "Subject")
-#names(data_EVig_table)[names(data_EVig_table)=='FA_Juan'] <- "EV_FA_Total"
-#data_EVig_table[is.na(data_EVig_table$EV_FA_Total), "EV_FA_Total" ] = 0
+#A' (sensitivity)
+data_processed = data_processed %>%
+  mutate(Ap=ifelse(Hits_Percentage/100 < FA_Percentage/100 | Hits_Percentage/100 == 0,
+                   0.5,
+                   0.5 + (((Hits_Percentage/100 - FA_Percentage/100)*(1 + Hits_Percentage/100 - FA_Percentage/100)) / (4*(Hits_Percentage/100)*(1 - (FA_Percentage/100))))))
 
-
-#data_EVig_table = merge(x = data_EVig_table, y = aggregate(FA_Difficult ~ Subject, data = data_EVig[which(data_EVig$Trial_FA_Difficult=="YES" & data_EVig$FA_Difficult == 1),], FUN = length), all.x = TRUE, all.y = TRUE, by = "Subject")
-#names(data_EVig_table)[names(data_EVig_table)=='FA_Difficult'] <- "EV_FA_Difficult"
-#data_EVig_table[is.na(data_EVig_table$EV_FA_Difficult), "EV_FA_Difficult" ] = 0
-
-#Compute Hits and FA total/difficult rate #
-
-data_EVig_table = merge(x = data_EVig_table, y = aggregate(Target.ACC ~ Subject, data = data_EVig[which(data_EVig$`Vigilancia[Trial]` =="VE"),], FUN = mean), all.x = TRUE, all.y = TRUE, by = "Subject")
-names(data_EVig_table)[names(data_EVig_table)=='Target.ACC'] <- "EV_Hrate"
-
-#data_EVig_table = merge(x = data_EVig_table, y = aggregate(100 * FA_Juan ~ Subject, data = data_EVig[which(data_EVig$`Vigilancia[Trial]`=="NoVigilancia"),], FUN = mean), all.x = TRUE, all.y = TRUE, by = "Subject")
-#names(data_EVig_table)[names(data_EVig_table)=='100 * FA_Juan'] <- "EV_FArate_Total"
-
-data_EVig_table = merge(x = data_EVig_table, y = aggregate(FA_Difficult ~ Subject, data = data_EVig[which(data_EVig$Trial_FA_Difficult =="YES"),], FUN = mean), all.x = TRUE, all.y = TRUE, by = "Subject")
-names(data_EVig_table)[names(data_EVig_table)=='FA_Difficult'] <- "EV_FArate_Difficult"
-
-
-# Executive Vigilance: A' (sensitivity) and B" (response bias) non-parametric (np) indexes #
-
-data_EVig_table$EV_Anp = 
-  ifelse(data_EVig_table$EV_Hrate < data_EVig_table$EV_FArate_Difficult | data_EVig_table$EV_Hrate == 0,
-         0.5,
-         0.5 + (((data_EVig_table$EV_Hrate - data_EVig_table$EV_FArate_Difficult)*(1 + data_EVig_table$EV_Hrate - data_EVig_table$EV_FArate_Difficult)) / (4*data_EVig_table$EV_Hrate*(1 - data_EVig_table$EV_FArate_Difficult))))
-
-data_EVig_table$EV_Bnp = 
-  ifelse(data_EVig_table$EV_Hrate==0 & data_EVig_table$EV_FArate_Difficult==0,
-         1,
-         ifelse(data_EVig_table$EV_Hrate==1,
-                -1,
-                ((data_EVig_table$EV_Hrate * (1 - data_EVig_table$EV_Hrate)) - (data_EVig_table$EV_FArate_Difficult * (1 - data_EVig_table$EV_FArate_Difficult))) / ((data_EVig_table$EV_Hrate * (1 - data_EVig_table$EV_Hrate)) + (data_EVig_table$EV_FArate_Difficult * (1 - data_EVig_table$EV_FArate_Difficult)))))
-
+#B'' (response bias)
+data_processed = data_processed %>%
+  mutate(Bp=ifelse(Hits_Percentage/100==0 & FA_Percentage/100==0,
+                   1,
+                   ifelse(Hits_Percentage/100==1,
+                          -1,
+                          (((Hits_Percentage/100) * (1 - Hits_Percentage/100)) - ((FA_Percentage/100) * (1 - FA_Percentage/100))) / (((Hits_Percentage/100) * (1 - Hits_Percentage/100)) + ((FA_Percentage/100) * (1 - (FA_Percentage/100)))))))
+rm(x)
 
 #Calculating EV Slopes#
 
-#Hits
+#Hits slope
+x = data_EV %>% 
+  filter(`Vigilancia[Trial]` =="VE") %>% 
+  group_by(Subject,BlockList) %>% 
+  summarise(Hits_Percentage=mean(Target.ACC)*100) %>% 
+  spread(BlockList,Hits_Percentage) %>% 
+  transmute(Hits_Slope = coef(lm(c(`1`,`2`,`3`,`4`,`5`,`6`) ~ experimentalblocks))[2]) %>% 
+  ungroup(Subject) %>% 
+  select(-Subject)
+data_processed=bind_cols(data_processed,x)
 
-for (i in experimentalblocks)
-  {
-  data_EVig_table = merge(x = data_EVig_table, y = aggregate(Target.ACC ~ Subject, data = data_EVig[which(data_EVig$`Vigilancia[Trial]` =="VE" & data_EVig$BlockList==i),], FUN = mean), all.x = TRUE, all.y = TRUE, by = "Subject")
-  names(data_EVig_table)[names(data_EVig_table)=='Target.ACC'] <- paste0("EV_Hrate_B",i)
-}
+#False alarms slope
+x = data_EV %>% 
+  filter(Trial_FA_Difficult =="YES") %>% 
+  group_by(Subject,BlockList) %>% 
+  summarise(FA_Percentage=mean(FA_Difficult)*100) %>% 
+  spread(BlockList,FA_Percentage) %>% 
+  transmute(FA_Slope = coef(lm(c(`1`,`2`,`3`,`4`,`5`,`6`) ~ experimentalblocks))[2]) %>% 
+  ungroup(Subject) %>% 
+  select(-Subject)
+data_processed=bind_cols(data_processed,x)
 
-for (i in 1:length(data_EVig_table$Subject))
-  {
-  Blocks_EV_Hrate = c(data_EVig_table$EV_Hrate_B1[i], data_EVig_table$EV_Hrate_B2[i], data_EVig_table$EV_Hrate_B3[i], data_EVig_table$EV_Hrate_B4[i], data_EVig_table$EV_Hrate_B5[i], data_EVig_table$EV_Hrate_B6[i])
-  SL_EV_Hrate = lm(Blocks_EV_Hrate ~ experimentalblocks)
-  data_EVig_table$Slope_EV_Hrate[i] =
-    coef(SL_EV_Hrate)[2]
-  }
+#A' (sensitivity) slope
+x = data_EV %>% 
+  filter(Trial_FA_Difficult =="YES") %>% 
+  group_by(Subject,BlockList) %>% 
+  summarise(FA_Percentage=mean(FA_Difficult)*100) %>% 
+  spread(BlockList,FA_Percentage) %>% 
+  transmute(FA_Slope = coef(lm(c(`1`,`2`,`3`,`4`,`5`,`6`) ~ experimentalblocks))[2]) %>% 
+  ungroup(Subject) %>% 
+  select(-Subject)
+data_processed=bind_cols(data_processed,x)
 
-#False alarms
 
-for (i in experimentalblocks)
-{
-  data_EVig_table = merge(x = data_EVig_table, y = aggregate(FA_Difficult ~ Subject, data = data_EVig[which(data_EVig$Trial_FA_Difficult =="YES" & data_EVig$BlockList==i),], FUN = mean), all.x = TRUE, all.y = TRUE, by = "Subject")
-  names(data_EVig_table)[names(data_EVig_table)=='FA_Difficult'] <- paste0("EV_FArate_B",i)
-}
+data_processed = data_processed %>%
+  mutate(Ap=ifelse(Hits_Percentage/100 < FA_Percentage/100 | Hits_Percentage/100 == 0,
+                   0.5,
+                   0.5 + (((Hits_Percentage/100 - FA_Percentage/100)*(1 + Hits_Percentage/100 - FA_Percentage/100)) / (4*(Hits_Percentage/100)*(1 - (FA_Percentage/100))))))
 
-for (i in 1:length(data_EVig_table$Subject))
-{
-  Blocks_EV_FArate = c(data_EVig_table$EV_FArate_B1[i], data_EVig_table$EV_FArate_B2[i], data_EVig_table$EV_FArate_B3[i], data_EVig_table$EV_FArate_B4[i], data_EVig_table$EV_FArate_B5[i], data_EVig_table$EV_FArate_B6[i])
-  SL_EV_FArate = lm(Blocks_EV_FArate ~ experimentalblocks)
-  data_EVig_table$Slope_EV_FArate[i] =
-    coef(SL_EV_FArate)[2]
-}
 
-#A'
+
 
 for (i in experimentalblocks)
 {
