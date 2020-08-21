@@ -1,6 +1,6 @@
 ######Install and/or load packages######
 
-if(!require(pacman)){install.packages("pacman")}
+if(!require(pacman)){install.packages("pacman")} # Install the package in case it was not installed
 library(pacman) #This package ("pacman") serves to install and load other packages simultaneously
 p_load(readxl, rockchalk, plyr, Hmisc, tidyverse) #Installing and loading the rest of the packages
 
@@ -12,9 +12,9 @@ experimentalblocks = c(1:6) #if necessary, to exclude data after n experimental 
 
 ##### Load data file #####
 
-data_raw <- read_excel("./Inputs/Data_ANTI-VeaD.xlsx", sheet = "Raw_Data")
-data_processed = data_raw %>% 
-  distinct(Subject)
+data_raw <- read_excel("./Inputs/Data_ANTI-VeaD.xlsx", sheet = "Raw_Data") # Search from the PROJECT's working directory (the dot)
+data_processed = data_raw %>% #data_processed will be the base where the relevant task indexes are included
+  distinct(Subject) #Numbers with no repetition, only taking into account, the $Subject column
 
 #####Identify outliers participants######
 
@@ -24,19 +24,17 @@ data_processed = data_raw %>%
 
 x = data_raw %>%
   filter (BlockList %in% experimentalblocks, `Vigilancia[Trial]`=="NoVigilancia") %>% 
-  group_by(Subject) %>% 
+  group_by(Subject) %>% #This makes summaries to conduct descriptives at the subject's level
   summarise(Target.Error=mean(Target.Error))
 outliers_performance = x %>% #This object represents the subjects that have been excluded
   filter (Target.Error > .25) %>% 
   select(Subject) %>% 
-  pull()
+  pull() # Make the output a value (single vector), and not a structure of data
 n_excluded_bcperformance = length(outliers_performance) # This object is the number of subjects that have been excluded
 
 x = x %>% 
   transmute(Validity_GeneralTask=ifelse(Target.Error > .25, "No","Yes"))
 data_processed = cbind(data_processed,x)
-
-rm(x)
 
   #Irrelevant distractor trials# Participants with more than 25% errors in distractor present condition
 
@@ -57,7 +55,7 @@ data_processed = cbind(data_processed,x)
 
 rm(x)
 
-  #Outlier trials#
+#####Identify outliers trials######
 
   #ANTI RT#
 
@@ -96,7 +94,7 @@ data_rt = data_raw %>%
   
 # Generate data table for RT analyses #
 
-data_rt_table = data_rt %>% 
+data_rt_table = data_rt %>% # Table with the relevant outcomes for task check
   group_by(Subject, `Tono[Trial]`, `ValidezClave[Trial]`, `Congruency[Trial]`) %>% 
   summarise(Target.RT=mean(Target.RT)) %>% 
   mutate(Condition = paste(`Tono[Trial]`,`ValidezClave[Trial]`,`Congruency[Trial]`, sep = "_"))
@@ -109,10 +107,8 @@ data_rt_table = as.data.frame(data_rt_table) %>%
 
 x = as.data.frame(data_rt) %>% 
   group_by(Subject) %>% 
-  summarise(Overall_RT=mean(Target.RT)) %>% 
-  ungroup(Subject) %>% 
-  select(-Subject)
-data_processed=bind_cols(data_processed,x)
+  summarise(Overall_RT=mean(Target.RT))
+data_processed=bind_cols(data_processed,x[2])
 
 #Alerting
 x = as.data.frame(data_rt) %>% 
@@ -120,21 +116,19 @@ x = as.data.frame(data_rt) %>%
   summarise(Target.RT=mean(Target.RT)) %>%  
   spread(`Tono[Trial]`, Target.RT) %>% 
   mutate(Alerting_RT = notono - tono) %>%
-  rename(notono_RT=notono,tono_RT=tono) %>% 
-  ungroup(Subject) %>% 
-  select(-Subject)
-data_processed=bind_cols(data_processed,x)
+  rename(notono_RT=notono,tono_RT=tono) 
+data_rt_table=bind_cols(data_rt_table,x[2:3])
+data_processed=bind_cols(data_processed,x[4])
 
 #Orienting
 x = as.data.frame(data_rt) %>% 
   group_by(Subject, `ValidezClave[Trial]`) %>% 
   summarise(Target.RT=mean(Target.RT)) %>%  
   spread(`ValidezClave[Trial]`, Target.RT) %>% 
-  mutate(Validez_RT = invalida - valida) %>%
-  rename(invalida_RT=invalida,nocue_RT=nocue,valida_RT=valida) %>% 
-  ungroup(Subject) %>% 
-  select(-Subject)
-data_processed=bind_cols(data_processed,x)
+  mutate(Orienting_RT = invalida - valida) %>%
+  rename(invalid_RT=invalida,nocue_RT=nocue,valid_RT=valida)
+data_rt_table=bind_cols(data_rt_table,x[2:4])
+data_processed=bind_cols(data_processed,x[5])
 
 #Congruency
 x = as.data.frame(data_rt) %>% 
@@ -142,12 +136,14 @@ x = as.data.frame(data_rt) %>%
   summarise(Target.RT=mean(Target.RT)) %>%  
   spread(`Congruency[Trial]`, Target.RT) %>% 
   mutate(Congruency_RT = incongruent - congruent) %>%
-  rename(incongruent_RT=incongruent,congruent_RT=congruent) %>% 
-  ungroup(Subject) %>% 
-  select(-Subject)
-data_processed=bind_cols(data_processed,x)
+  rename(incongruent_RT=incongruent,congruent_RT=congruent)
+data_rt_table=bind_cols(data_rt_table,x[2:3])
+data_processed=bind_cols(data_processed,x[4])
 
 rm(x)
+
+data_rt_table = data_rt_table %>% #Removing outliers from task analyses of ANTI RT trials
+  filter(!Subject %in% outliers_performance)
 
 # ACC analysis of ANTI trials #
 
@@ -158,7 +154,7 @@ data_acc = data_raw %>%
 
 # Generate data table for ACC (percentage errors) analysis #
 
-data_acc_table = data_acc %>% 
+data_acc_table = data_acc %>% # Table with the relevant outcomes for task check
   group_by(Subject, `Tono[Trial]`, `ValidezClave[Trial]`, `Congruency[Trial]`) %>% 
   summarise(Target.ACC=(1-mean(Target.ACC))*100) %>%
   mutate(Condition = paste(`Tono[Trial]`,`ValidezClave[Trial]`,`Congruency[Trial]`, sep = "_"))
@@ -170,10 +166,8 @@ data_acc_table = as.data.frame(data_acc_table) %>%
 #Overall
 x = as.data.frame(data_acc) %>% 
   group_by(Subject) %>% 
-  summarise(Overall_ACC=(1-mean(Target.ACC))*100) %>% 
-  ungroup(Subject) %>% 
-  select(-Subject)
-data_processed=bind_cols(data_processed,x)
+  summarise(Overall_ACC=(1-mean(Target.ACC))*100)
+data_processed=bind_cols(data_processed,x[2])
 
 #Alerting
 x = as.data.frame(data_acc) %>% 
@@ -181,21 +175,19 @@ x = as.data.frame(data_acc) %>%
   summarise(Target.ACC=(1-mean(Target.ACC))*100) %>%  
   spread(`Tono[Trial]`, Target.ACC) %>% 
   mutate(Alerting_ACC = notono - tono) %>%
-  rename(notono_ACC=notono,tono_ACC=tono) %>% 
-  ungroup(Subject) %>% 
-  select(-Subject)
-data_processed=bind_cols(data_processed,x)
+  rename(notono_ACC=notono,tono_ACC=tono)
+data_acc_table=bind_cols(data_acc_table,x[2:3])
+data_processed=bind_cols(data_processed,x[4])
 
 #Orienting
 x = as.data.frame(data_acc) %>% 
   group_by(Subject, `ValidezClave[Trial]`) %>% 
   summarise(Target.ACC=(1-mean(Target.ACC))*100) %>%  
   spread(`ValidezClave[Trial]`, Target.ACC) %>% 
-  mutate(Validez_ACC = invalida - valida) %>%
-  rename(invalida_ACC=invalida,nocue_ACC=nocue,valida_ACC=valida) %>% 
-  ungroup(Subject) %>% 
-  select(-Subject)
-data_processed=bind_cols(data_processed,x)
+  mutate(Orienting_ACC = invalida - valida) %>%
+  rename(invalid_ACC=invalida,nocue_ACC=nocue,valid_ACC=valida)
+data_acc_table=bind_cols(data_acc_table,x[2:4])
+data_processed=bind_cols(data_processed,x[5])
 
 #Congruency
 x = as.data.frame(data_acc) %>% 
@@ -203,19 +195,41 @@ x = as.data.frame(data_acc) %>%
   summarise(Target.ACC=(1-mean(Target.ACC))*100) %>%  
   spread(`Congruency[Trial]`, Target.ACC) %>% 
   mutate(Congruency_ACC = incongruent - congruent) %>%
-  rename(incongruent_ACC=incongruent,congruent_ACC=congruent) %>% 
-  ungroup(Subject) %>% 
-  select(-Subject)
-data_processed=bind_cols(data_processed,x)
+  rename(incongruent_ACC=incongruent,congruent_ACC=congruent)
+data_acc_table=bind_cols(data_acc_table,x[2:3])
+data_processed=bind_cols(data_processed,x[4])
 
 rm(x)
 
+data_acc_table = data_acc_table %>% #Removing outliers from task analyses of ANTI percentage errors trials
+  filter(!Subject %in% outliers_performance)
+  
 #### EV Trials ####
 
 # Select appropriate trials (NOT drop first block) #
 
 data_EV = data_raw %>% 
   filter(BlockList %in% experimentalblocks)
+data_EV_table = data_EV %>% # Executive Vigilance scores per block for performance over time analyses
+  distinct(Subject)
+
+# Define functions for A' and B''#
+
+Aprime = function(Hits_Percentage, FA_Percentage)
+{
+  ifelse(Hits_Percentage/100 < FA_Percentage/100 | Hits_Percentage/100 == 0,
+         0.5,
+         0.5 + (((Hits_Percentage/100 - FA_Percentage/100)*(1 + Hits_Percentage/100 - FA_Percentage/100)) / (4*(Hits_Percentage/100)*(1 - (FA_Percentage/100)))))
+}
+
+Bprime = function(Hits_Percentage, FA_Percentage)
+{
+  ifelse(Hits_Percentage/100==0 & FA_Percentage/100==0,
+         1,
+         ifelse(Hits_Percentage/100==1,
+                -1,
+                (((Hits_Percentage/100) * (1 - Hits_Percentage/100)) - ((FA_Percentage/100) * (1 - FA_Percentage/100))) / (((Hits_Percentage/100) * (1 - Hits_Percentage/100)) + ((FA_Percentage/100) * (1 - (FA_Percentage/100)))))) 
+}
 
 # Compute EV scores #
 
@@ -223,33 +237,24 @@ data_EV = data_raw %>%
 x = data_EV %>% 
   filter(`Vigilancia[Trial]` =="VE") %>% 
   group_by(Subject) %>% 
-  summarise(Hits_Percentage=mean(Target.ACC)*100) %>% 
-  ungroup(Subject) %>% 
-  select(-Subject)
-data_processed=bind_cols(data_processed,x)
+  summarise(Hits_Percentage=mean(Target.ACC)*100)
+data_processed=bind_cols(data_processed,x[2])
 
 #False Alarms (percentage)  
 x = data_EV %>% 
   filter(Trial_FA_Difficult =="YES") %>% 
   group_by(Subject) %>% 
-  summarise(FA_Percentage=mean(FA_Difficult)*100) %>% 
-  ungroup(Subject) %>% 
-  select(-Subject)
-data_processed=bind_cols(data_processed,x)
+  summarise(FA_Percentage=mean(FA_Difficult)*100) 
+data_processed=bind_cols(data_processed,x[2])
 
 #A' (sensitivity)
 data_processed = data_processed %>%
-  mutate(Ap=ifelse(Hits_Percentage/100 < FA_Percentage/100 | Hits_Percentage/100 == 0,
-                   0.5,
-                   0.5 + (((Hits_Percentage/100 - FA_Percentage/100)*(1 + Hits_Percentage/100 - FA_Percentage/100)) / (4*(Hits_Percentage/100)*(1 - (FA_Percentage/100))))))
+  mutate(Ap=Aprime(Hits_Percentage,FA_Percentage))
 
 #B'' (response bias)
 data_processed = data_processed %>%
-  mutate(Bp=ifelse(Hits_Percentage/100==0 & FA_Percentage/100==0,
-                   1,
-                   ifelse(Hits_Percentage/100==1,
-                          -1,
-                          (((Hits_Percentage/100) * (1 - Hits_Percentage/100)) - ((FA_Percentage/100) * (1 - FA_Percentage/100))) / (((Hits_Percentage/100) * (1 - Hits_Percentage/100)) + ((FA_Percentage/100) * (1 - (FA_Percentage/100)))))))
+  mutate(Bp=Bprime(Hits_Percentage,FA_Percentage))
+
 rm(x)
 
 #Calculating EV Slopes#
@@ -260,10 +265,10 @@ x = data_EV %>%
   group_by(Subject,BlockList) %>% 
   summarise(Hits_Percentage=mean(Target.ACC)*100) %>% 
   spread(BlockList,Hits_Percentage) %>% 
-  transmute(Hits_Slope = coef(lm(c(`1`,`2`,`3`,`4`,`5`,`6`) ~ experimentalblocks))[2]) %>% 
-  ungroup(Subject) %>% 
-  select(-Subject)
-data_processed=bind_cols(data_processed,x)
+  mutate(Hits_Slope = coef(lm(c(`1`,`2`,`3`,`4`,`5`,`6`) ~ experimentalblocks))[2]) %>% 
+  rename_at(vars(`1`:`6`) ,function(x){paste0("EV_Hits_B", x)})
+data_EV_table=bind_cols(data_EV_table,x[2:7])
+data_processed=bind_cols(data_processed,x[8])
 
 #False alarms slope
 x = data_EV %>% 
@@ -271,136 +276,109 @@ x = data_EV %>%
   group_by(Subject,BlockList) %>% 
   summarise(FA_Percentage=mean(FA_Difficult)*100) %>% 
   spread(BlockList,FA_Percentage) %>% 
-  transmute(FA_Slope = coef(lm(c(`1`,`2`,`3`,`4`,`5`,`6`) ~ experimentalblocks))[2]) %>% 
-  ungroup(Subject) %>% 
-  select(-Subject)
-data_processed=bind_cols(data_processed,x)
+  mutate(FA_Slope = coef(lm(c(`1`,`2`,`3`,`4`,`5`,`6`) ~ experimentalblocks))[2]) %>% 
+  rename_at(vars(`1`:`6`) ,function(x){paste0("EV_FA_B", x)})
+data_EV_table=bind_cols(data_EV_table,x[2:7])
+data_processed=bind_cols(data_processed,x[8])
 
 #A' (sensitivity) slope
 x = data_EV %>% 
-  filter(Trial_FA_Difficult =="YES") %>% 
   group_by(Subject,BlockList) %>% 
-  summarise(FA_Percentage=mean(FA_Difficult)*100) %>% 
-  spread(BlockList,FA_Percentage) %>% 
-  transmute(FA_Slope = coef(lm(c(`1`,`2`,`3`,`4`,`5`,`6`) ~ experimentalblocks))[2]) %>% 
-  ungroup(Subject) %>% 
-  select(-Subject)
-data_processed=bind_cols(data_processed,x)
+  summarise(Hits_Percentage=mean(Target.ACC[which(`Vigilancia[Trial]` =="VE")])*100, FA_Percentage=mean(FA_Difficult[which(Trial_FA_Difficult=="YES")])*100) %>% 
+  mutate(Ap=Aprime(Hits_Percentage,FA_Percentage)) %>% 
+  select(-Hits_Percentage,-FA_Percentage) %>% 
+  spread(BlockList,Ap) %>% 
+  mutate(Ap_Slope = coef(lm(c(`1`,`2`,`3`,`4`,`5`,`6`) ~ experimentalblocks))[2]) %>% 
+  rename_at(vars(`1`:`6`) ,function(x){paste0("EV_Ap_B", x)})
+data_EV_table=bind_cols(data_EV_table,x[2:7])
+data_processed=bind_cols(data_processed,x[8])
 
+#B'' (response bias) slope
+x = data_EV %>% 
+  group_by(Subject,BlockList) %>% 
+  summarise(Hits_Percentage=mean(Target.ACC[which(`Vigilancia[Trial]` =="VE")])*100, FA_Percentage=mean(FA_Difficult[which(Trial_FA_Difficult=="YES")])*100) %>% 
+  mutate(Bp=Bprime(Hits_Percentage,FA_Percentage)) %>% 
+  select(-Hits_Percentage,-FA_Percentage) %>% 
+  spread(BlockList,Bp) %>% 
+  mutate(Bp_Slope = coef(lm(c(`1`,`2`,`3`,`4`,`5`,`6`) ~ experimentalblocks))[2]) %>% 
+  rename_at(vars(`1`:`6`) ,function(x){paste0("EV_Bp_B", x)})
+data_EV_table=bind_cols(data_EV_table,x[2:7])
+data_processed=bind_cols(data_processed,x[8])
 
-data_processed = data_processed %>%
-  mutate(Ap=ifelse(Hits_Percentage/100 < FA_Percentage/100 | Hits_Percentage/100 == 0,
-                   0.5,
-                   0.5 + (((Hits_Percentage/100 - FA_Percentage/100)*(1 + Hits_Percentage/100 - FA_Percentage/100)) / (4*(Hits_Percentage/100)*(1 - (FA_Percentage/100))))))
+rm(x)
 
+data_EV_table = data_EV_table %>% #Removing outliers from task analyses of EV performance over time
+  filter(!Subject %in% outliers_performance)
 
-
-
-for (i in experimentalblocks)
-{
-data_EVig_table[[paste0("EV_Ap_B", i)]] =
-  ifelse(data_EVig_table[[paste0("EV_Hrate_B", i)]] < data_EVig_table[[paste0("EV_FArate_B", i)]] | data_EVig_table[[paste0("EV_Hrate_B", i)]] == 0,
-         0.5,
-         0.5 + (((data_EVig_table[[paste0("EV_Hrate_B", i)]] - data_EVig_table[[paste0("EV_FArate_B", i)]])*(1 + data_EVig_table[[paste0("EV_Hrate_B", i)]] - data_EVig_table[[paste0("EV_FArate_B", i)]])) / (4*data_EVig_table[[paste0("EV_Hrate_B", i)]]*(1 - data_EVig_table[[paste0("EV_FArate_B", i)]]))))
-}
-
-for (i in 1:length(data_EVig_table$Subject))
-{
-  Blocks_EV_Ap = c(data_EVig_table$EV_Ap_B1[i], data_EVig_table$EV_Ap_B2[i], data_EVig_table$EV_Ap_B3[i], data_EVig_table$EV_Ap_B4[i], data_EVig_table$EV_Ap_B5[i], data_EVig_table$EV_Ap_B6[i])
-  SL_Ap = lm(Blocks_EV_Ap ~ experimentalblocks)
-  data_EVig_table$Slope_Ap[i] =
-    coef(SL_Ap)[2]
-}
-
-#B''
-
-for (i in experimentalblocks)
-{
-data_EVig_table[[paste0("EV_Bp_B", i)]] =
-  ifelse(data_EVig_table[[paste0("EV_Hrate_B", i)]]==0 & data_EVig_table[[paste0("EV_FArate_B", i)]]==0,
-         1,
-         ifelse(data_EVig_table[[paste0("EV_Hrate_B", i)]]==1,
-                -1,
-                ((data_EVig_table[[paste0("EV_Hrate_B", i)]] * (1 - data_EVig_table[[paste0("EV_Hrate_B", i)]])) - (data_EVig_table[[paste0("EV_FArate_B", i)]] * (1 - data_EVig_table[[paste0("EV_FArate_B", i)]]))) / ((data_EVig_table[[paste0("EV_Hrate_B", i)]] * (1 - data_EVig_table[[paste0("EV_Hrate_B", i)]])) + (data_EVig_table[[paste0("EV_FArate_B", i)]] * (1 - data_EVig_table[[paste0("EV_FArate_B", i)]])))))
-}
- 
-for (i in 1:length(data_EVig_table$Subject))
-{
-Blocks_EV_Bp = c(data_EVig_table$EV_Bp_B1[i], data_EVig_table$EV_Bp_B2[i], data_EVig_table$EV_Bp_B3[i], data_EVig_table$EV_Bp_B4[i], data_EVig_table$EV_Bp_B5[i], data_EVig_table$EV_Bp_B6[i])
-SL_Bp = lm(Blocks_EV_Bp ~ experimentalblocks)
-data_EVig_table$Slope_Bp[i] =
-  coef(SL_Bp)[2]
-}
-
-##### Arousal Vigilance (AV) #####
+#### AV Trials ####
 
 # Select appropriate trials (NOT drop first block) #
 
-data_AVig = data_raw[which(data_raw$`Vigilancia[Trial]` =="VA"),]
-data_AVig = data_AVig[which(data_AVig$BlockList %in% experimentalblocks),]
+data_AV = data_raw %>% 
+  filter(BlockList %in% experimentalblocks, `Vigilancia[Trial]` =="VA")
+data_AV_table = data_AV %>% # Arousal Vigilance scores per block for performance over time analyses
+  distinct(Subject)
 
-data_AVig_table = unique(subset(data_AVig, select = "Subject"))
+# Compute AV scores #
 
-# Compute RT, SD of RT, and Lapsus rate #
+#Mean
 
-data_AVig_table = merge(x = data_AVig_table, y = aggregate(TargetVA.RT ~ Subject, data = data_AVig, FUN = mean), all.x = TRUE, all.y = TRUE, by = "Subject")
-names(data_AVig_table)[names(data_AVig_table)=='TargetVA.RT'] <- "AV_RT"
+x = as.data.frame(data_AV) %>% 
+  group_by(Subject) %>% 
+  summarise(AV_Mean=mean(TargetVA.RT))
+data_processed=bind_cols(data_processed,x[2])
 
-data_AVig_table = merge(x = data_AVig_table, y = aggregate(TargetVA.RT ~ Subject, data = data_AVig, FUN = sd), all.x = TRUE, all.y = TRUE, by = "Subject")
-names(data_AVig_table)[names(data_AVig_table)=='TargetVA.RT'] <- "AV_SD"
+#SD
+x = as.data.frame(data_AV) %>% 
+  group_by(Subject) %>% 
+  summarise(AV_SD=sd(TargetVA.RT))
+data_processed=bind_cols(data_processed,x[2])
 
-data_AVig_table = merge(x = data_AVig_table, y = aggregate(Lapsus_Juan ~ Subject, data = data_AVig, FUN = mean), all.x = TRUE, all.y = TRUE, by = "Subject")
-names(data_AVig_table)[names(data_AVig_table)=='Lapsus_Juan'] <- "AV_Lapsus"
+#Percentage lapses
 
-#Calculate slopes#
+x = as.data.frame(data_AV) %>% 
+  group_by(Subject) %>% 
+  summarise(AV_Lapses=mean(Lapsus_Juan)*100)
+data_processed=bind_cols(data_processed,x[2])
 
-#RT
+rm(x)
 
-for (i in experimentalblocks)
-{
-data_AVig_table = merge(x = data_AVig_table, y = aggregate(TargetVA.RT ~ Subject, data = data_AVig[which(data_AVig$BlockList==i),], FUN = mean), all.x = TRUE, all.y = TRUE, by = "Subject")
-names(data_AVig_table)[names(data_AVig_table)=='TargetVA.RT'] <- paste0("AV_RT_B",i)
-}
+#Calculate AV slopes#
 
-for (i in 1:length(data_AVig_table$Subject))
-{
-Blocks_AV_RT = c(data_AVig_table$AV_RT_B1[i], data_AVig_table$AV_RT_B2[i], data_AVig_table$AV_RT_B3[i], data_AVig_table$AV_RT_B4[i], data_AVig_table$AV_RT_B5[i], data_AVig_table$AV_RT_B6[i])
-SL_AV_RT = lm(Blocks_AV_RT ~ experimentalblocks)
-data_AVig_table$Slope_AV_RT[i] =
-  coef(SL_AV_RT)[2]
-}
+#Mean slope
+
+x = data_AV %>% 
+  group_by(Subject,BlockList) %>% 
+  summarise(AV_Mean=mean(TargetVA.RT)) %>% 
+  spread(BlockList,AV_Mean) %>% 
+  mutate(AV_Mean_Slope = coef(lm(c(`1`,`2`,`3`,`4`,`5`,`6`) ~ experimentalblocks))[2]) %>% 
+  rename_at(vars(`1`:`6`) ,function(x){paste0("AV_Mean_B", x)})
+data_AV_table=bind_cols(data_AV_table,x[2:7])
+data_processed=bind_cols(data_processed,x[8])
 
 #SD
 
-for (i in experimentalblocks)
-{
-data_AVig_table = merge(x = data_AVig_table, y = aggregate(TargetVA.RT ~ Subject, data = data_AVig[which(data_AVig$BlockList==i),], FUN = sd), all.x = TRUE, all.y = TRUE, by = "Subject")
-names(data_AVig_table)[names(data_AVig_table)=='TargetVA.RT'] <- paste0("AV_SD_B",i)
-}
-
-for (i in 1:length(data_AVig_table$Subject))
-{
-Blocks_AV_SD = c(data_AVig_table$AV_SD_B1[i], data_AVig_table$AV_SD_B2[i], data_AVig_table$AV_SD_B3[i], data_AVig_table$AV_SD_B4[i], data_AVig_table$AV_SD_B5[i], data_AVig_table$AV_SD_B6[i])
-SL_AV_SD = lm(Blocks_AV_SD ~ experimentalblocks)
-data_AVig_table$Slope_AV_SD[i] =
-  coef(SL_AV_SD)[2]
-}
+x = data_AV %>% 
+  group_by(Subject,BlockList) %>% 
+  summarise(AV_SD=sd(TargetVA.RT)) %>% 
+  spread(BlockList,AV_SD) %>% 
+  mutate(AV_SD_Slope = coef(lm(c(`1`,`2`,`3`,`4`,`5`,`6`) ~ experimentalblocks))[2]) %>% 
+  rename_at(vars(`1`:`6`) ,function(x){paste0("AV_SD_B", x)})
+data_AV_table=bind_cols(data_AV_table,x[2:7])
+data_processed=bind_cols(data_processed,x[8])
 
 #Lapses
 
-for (i in experimentalblocks)
-{
-data_AVig_table = merge(x = data_AVig_table, y = aggregate(Lapsus_Juan ~ Subject, data = data_AVig[which(data_AVig$BlockList==i),], FUN = mean), all.x = TRUE, all.y = TRUE, by = "Subject")
-names(data_AVig_table)[names(data_AVig_table)=='Lapsus_Juan'] <- paste0("AV_Lapsus_B",i)
-}
+x = data_AV %>% 
+  group_by(Subject,BlockList) %>% 
+  summarise(AV_Lapses=mean(Lapsus_Juan)) %>% 
+  spread(BlockList,AV_Lapses) %>% 
+  mutate(AV_Lapses_Slope = coef(lm(c(`1`,`2`,`3`,`4`,`5`,`6`) ~ experimentalblocks))[2]) %>% 
+  rename_at(vars(`1`:`6`) ,function(x){paste0("AV_Lapses_B", x)})
+data_AV_table=bind_cols(data_AV_table,x[2:7])
+data_processed=bind_cols(data_processed,x[8])
 
-for (i in 1:length(data_AVig_table$Subject))
-{
-Blocks_AV_Lapsus = c(data_AVig_table$AV_Lapsus_B1[i], data_AVig_table$AV_Lapsus_B2[i], data_AVig_table$AV_Lapsus_B3[i], data_AVig_table$AV_Lapsus_B4[i], data_AVig_table$AV_Lapsus_B5[i], data_AVig_table$AV_Lapsus_B6[i])
-SL_AV_Lapsus = lm(Blocks_AV_Lapsus ~ experimentalblocks)
-data_AVig_table$Slope_AV_Lapsus[i] =
-  coef(SL_AV_Lapsus)[2]
-}
+rm(x)
 
 #####Irrelevant distractor######
 
