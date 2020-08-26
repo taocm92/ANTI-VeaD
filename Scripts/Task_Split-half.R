@@ -607,53 +607,66 @@ ldply(
 )
 
 #### Obtain reliability's overall mean of iterations, confidence intervals, and Spearman-Brown corrected value ####
-
-reliabilityfinal = function(table_reliability, effect,name)
+reliability_summary=NULL
+reliabilityfinal = function(table_reliability, effect)
 {
   reliabilityoutput = c(paste0("Permutation-based split-half reliability of ", effect,":"), 
                         paste0("Mean = ",round(mean(table_reliability[[effect]]),digits = 3),", 95% CI[",round(mean(table_reliability[[effect]]) - 1.96*(sd(table_reliability[[effect]])/sqrt(length(table_reliability[[effect]]))),digits = 3),", ",round(mean(table_reliability[[effect]]) + 1.96*(sd(table_reliability[[effect]])/sqrt(length(table_reliability[[effect]]))),digits = 3),"]."),
-                        paste0("Mean with Spearman-Brown correction (rSB) = ", round((2*mean(table_reliability[[effect]]))/(1+mean(table_reliability[[effect]])),digits = 3)," (CIs in a large sample of iterations does not virtually vary)."))
+                        paste0("Mean with Spearman-Brown correction (rSB) = ", round((2*mean(table_reliability[[effect]]))/(1+mean(table_reliability[[effect]])),digits = 3),", 95% CI[",round((2*(mean(table_reliability[[effect]]) - 1.96*(sd(table_reliability[[effect]])/sqrt(length(table_reliability[[effect]]))))) / (1+(mean(table_reliability[[effect]]) + 1.96*(sd(table_reliability[[effect]])/sqrt(length(table_reliability[[effect]]))))),digits = 3),", ",round((2*(mean(table_reliability[[effect]]) + 1.96*(sd(table_reliability[[effect]])/sqrt(length(table_reliability[[effect]]))))) / (1+(mean(table_reliability[[effect]]) + 1.96*(sd(table_reliability[[effect]])/sqrt(length(table_reliability[[effect]]))))),digits = 3),"]."))
   cat(reliabilityoutput,sep="\n")
-  assign(name, reliabilityoutput, envir = .GlobalEnv)
+  reliability_summary <<- rbind(reliability_summary,reliabilityoutput)
   ExampleReporting <<- as.data.frame(matrix(c(paste0("Report example: We estimated the internal consistency of the ", effect, " index using a permutation-based split-half approach with 10,000 random splits (for a rationale, see Parsons et al., 2019; see Luna et al., 2020, and Roca et al., 2018, for previous applications of the technique). The Spearman-Brown corrected splithalf reliability was ", round((2*mean(table_reliability[[effect]]))/(1+mean(table_reliability[[effect]])),digits = 2),"."),"References:","[1] Parsons, S., Kruijt, A. W., & Fox, E. (2019). Psychological science needs a standard practice of reporting the reliability of cognitive-behavioral measurements. Advances in Methods and Practices in Psychological Science, 2(4), 378-395. https://doi.org/10.1177/2515245919879695","[2] Roca, J., Garcia-Fernandez, P., Castro, C., & Lupiáñez, J. (2018). The moderating effects of vigilance on other components of attentional functioning. Journal of Neuroscience Methods, 308, 151-161. https://doi.org/10.1016/j.jneumeth.2018.07.019","[3] Luna, F. G., Roca, J., Martín-Arévalo, E., & Lupiáñez, J. (2020). Measuring attention and vigilance in the laboratory vs. online: The split-half reliability of the ANTI-Vea [Manuscript in preparation]. Instituto de Investigaciones Psicológicas, Universidad Nacional de Córdoba.")),dimnames = NULL)
-  
 }
 
 #ANTI RT
-reliabilityfinal(antiRT_rels,"overall_RT","r.anti_RT_overall")
-reliabilityfinal(antiRT_rels,"alerting_RT", "r.anti_RT_alerting")
-reliabilityfinal(antiRT_rels,"orienting_RT", "r.anti_RT_orienting")
-reliabilityfinal(antiRT_rels,"congruency_RT", "r.anti_RT_congruency")
+reliabilityfinal(antiRT_rels,"overall_RT")
+reliabilityfinal(antiRT_rels,"alerting_RT")
+reliabilityfinal(antiRT_rels,"orienting_RT")
+reliabilityfinal(antiRT_rels,"congruency_RT")
 #ANTI ACC
-reliabilityfinal(antiACC_rels,"overall_ACC","r.anti_ACC_overall")
-reliabilityfinal(antiACC_rels,"alerting_ACC","r.anti_ACC_alerting")
-reliabilityfinal(antiACC_rels,"orienting_ACC","r.anti_ACC_orienting")
-reliabilityfinal(antiACC_rels,"congruency_ACC","r.anti_ACC_congruency")
+reliabilityfinal(antiACC_rels,"overall_ACC")
+reliabilityfinal(antiACC_rels,"alerting_ACC")
+reliabilityfinal(antiACC_rels,"orienting_ACC")
+reliabilityfinal(antiACC_rels,"congruency_ACC")
 #EV
-reliabilityfinal(ExecutiveVig_rels,"EV_Hits","r.EV_Hits")
-reliabilityfinal(ExecutiveVig_rels,"EV_Hits_Slope","r.EV_Hits_Slope")
-reliabilityfinal(ExecutiveVig_rels,"EV_FA","r.EV_FA")
-reliabilityfinal(ExecutiveVig_rels,"EV_FA_Slope","r.EV_FA_Slope")
-reliabilityfinal(ExecutiveVig_rels,"EV_Ap","r.EV_Ap")
-reliabilityfinal(ExecutiveVig_rels,"EV_Ap_Slope","r.EV_Ap_Slope")
-reliabilityfinal(ExecutiveVig_rels,"EV_Bp","r.EV_Bp")
-reliabilityfinal(ExecutiveVig_rels,"EV_Bp_Slope","r.EV_Bp_Slope")
+reliabilityfinal(ExecutiveVig_rels,"EV_Hits")
+reliabilityfinal(ExecutiveVig_rels,"EV_Hits_Slope")
+reliabilityfinal(ExecutiveVig_rels,"EV_FA")
+reliabilityfinal(ExecutiveVig_rels,"EV_FA_Slope")
+reliabilityfinal(ExecutiveVig_rels,"EV_Ap")
+reliabilityfinal(ExecutiveVig_rels,"EV_Ap_Slope")
+reliabilityfinal(ExecutiveVig_rels,"EV_Bp")
+reliabilityfinal(ExecutiveVig_rels,"EV_Bp_Slope")
 #AV
-reliabilityfinal(ArousalVig_rels,"AV_RT","r.AV_RT")
-reliabilityfinal(ArousalVig_rels,"AV_RT_Slope","r.AV_RT_Slope")
-reliabilityfinal(ArousalVig_rels,"AV_SD","r.AV_SD")
-reliabilityfinal(ArousalVig_rels,"AV_SD_Slope","r.AV_SD_Slope")
-reliabilityfinal(ArousalVig_rels,"AV_Lapsus","r.AV_Lapsus")
-reliabilityfinal(ArousalVig_rels,"AV_Lapsus_Slope","r.AV_Lapsus_Slope")
+reliabilityfinal(ArousalVig_rels,"AV_RT")
+reliabilityfinal(ArousalVig_rels,"AV_RT_Slope")
+reliabilityfinal(ArousalVig_rels,"AV_SD")
+reliabilityfinal(ArousalVig_rels,"AV_SD_Slope")
+reliabilityfinal(ArousalVig_rels,"AV_Lapsus")
+reliabilityfinal(ArousalVig_rels,"AV_Lapsus_Slope")
 #ID RT
-reliabilityfinal(ID_RT_rels,"IDz_RT","r.IDz_RT")
-reliabilityfinal(ID_RT_rels,"IDzSame_RT","r.IDzSame_RT")
-reliabilityfinal(ID_RT_rels,"IDzOpposite_RT","r.IDzOpposite_RT")
+reliabilityfinal(ID_RT_rels,"IDz_RT")
+reliabilityfinal(ID_RT_rels,"IDzSame_RT")
+reliabilityfinal(ID_RT_rels,"IDzOpposite_RT")
 #ID ACC
-reliabilityfinal(ID_ACC_rels,"IDz_ACC","r.IDz_ACC")
-reliabilityfinal(ID_ACC_rels,"IDzSame_ACC","r.IDzSame_ACC")
-reliabilityfinal(ID_ACC_rels,"IDzOpposite_ACC","r.IDzOpposite_ACC")
+reliabilityfinal(ID_ACC_rels,"IDz_ACC")
+reliabilityfinal(ID_ACC_rels,"IDzSame_ACC")
+reliabilityfinal(ID_ACC_rels,"IDzOpposite_ACC")
 
+####Export tables and files####
 
+#Export iteration tables#
+
+write.table(antiRT_rels, "./Outputs/From_Task_Split-half/antiRT_rels.csv", sep =",", row.names = FALSE)
+write.table(antiACC_rels, "./Outputs/From_Task_Split-half/antiACC_rels.csv", sep =",", row.names = FALSE)
+write.table(ExecutiveVig_rels, "./Outputs/From_Task_Split-half/ExecutiveVig_rels.csv", sep =",", row.names = FALSE)
+write.table(ArousalVig_rels, "./Outputs/From_Task_Split-half/ArousalVig_rels.csv", sep =",", row.names = FALSE)
+write.table(ID_RT_rels, "./Outputs/From_Task_Split-half/ID_RT_rels.csv", sep =",", row.names = FALSE)
+write.table(ID_ACC_rels, "./Outputs/From_Task_Split-half/ID_ACC_rels.csv", sep =",", row.names = FALSE)
+
+#Export reliability summary with an example of report#
+
+r.summary_and_example = list(reliability_summary,ExampleReporting)
+write.xlsx(r.summary_and_example, "./Outputs/From_Task_Split-half/r.summary_and_example.xlsx",col.names=FALSE,sheetName=c("Reliability_Summary","Report_Example"), colWidths = "auto")
 
 
