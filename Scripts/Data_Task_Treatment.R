@@ -27,7 +27,7 @@ data_processed = data_raw %>% #data_processed will be the base where the relevan
 
 x = data_raw %>%
   filter (BlockList %in% experimentalblocks, `Vigilancia[Trial]`=="NoVigilancia") %>% 
-  group_by(Subject) %>% #This makes summaries to conduct descriptives at the subject's level
+  group_by(Subject) %>% #This makes summaries to conduct descriptives at the subject level
   summarise(Target.Error=mean(Target.Error))
 outliers_performance = x %>% #This object represents the subjects that have been excluded
   filter (Target.Error > .25) %>% 
@@ -50,7 +50,7 @@ outliers_performance_IDtrials = x %>% #This object represents the subjects that 
   filter(Target.Error > .25) %>% 
   select(Subject) %>% 
   pull()
-n_excluded_bcperformance_IDtrials = length(outliers_performance_IDtrials)# This object is the number of subjects that have been excluded
+n_excluded_bcperformance_IDtrials = length(outliers_performance_IDtrials) # This object is the number of subjects that have been excluded
 
 x = x %>% 
   transmute(Validity_IDtrials=ifelse(Target.Error > .25, "No","Yes"))
@@ -66,12 +66,8 @@ rm(x)
 x = data_raw %>% 
   filter(!Subject %in% outliers_performance) %>%
   filter(BlockList %in% experimentalblocks, `Vigilancia[Trial]`=="NoVigilancia")
-filterRT_percentage_errors = x %>% # Percentage of incorrect trials (outlier subjects excluded)
-  summarise(round(100*sum(!Target.ACC == 1)/sum(Target.ACC == 1), digits = 4)) %>% 
-  pull()
-filterRT_percentage_time = x %>% # Percentage of trials excluded after RT filter (outlier subjects excluded)
-  summarise(round(100*sum(!(x$Target.RT > (filterRTmin) & x$Target.RT < filterRTmax))/sum(x$Target.RT > (filterRTmin) & x$Target.RT < filterRTmax), digits=4)) %>% 
-  pull()
+filterRT_percentage_errors = round(100*(as.numeric(x %>% tally(Target.ACC==0))/as.numeric(x %>% tally(Target.ACC %in% c(0,1)))),digits = 4) # Percentage of incorrect trials (outlier subjects excluded)
+filterRT_percentage_time = round(100*(as.numeric(x %>% tally(Target.RT<filterRTmin))+as.numeric(x %>% tally(Target.RT>filterRTmax)))/as.numeric(x %>% tally(!Target.RT<0)),digits = 4) # Percentage of trials excluded after RT filter (outlier subjects excluded)
 rm(x)
 
   #ID RT#
@@ -79,12 +75,8 @@ rm(x)
 x = data_raw %>% 
   filter(!Subject %in% c(outliers_performance, outliers_performance_IDtrials)) %>%
   filter(BlockList %in% experimentalblocks, `Vigilancia[Trial]`=="DP")
-filterRT_percentage_errors_ID = x %>% # Percentage of incorrect trials (outlier subjects excluded)
-  summarise(round(100*sum(!Target.ACC == 1)/sum(Target.ACC == 1), digits = 4)) %>% 
-  pull()
-filterRT_percentage_time_ID = x %>% # Percentage of trials excluded after RT filter (outlier subjects excluded)
-  summarise(round(100*sum(!(x$Target.RT > (filterRTmin) & x$Target.RT < filterRTmax))/sum(x$Target.RT > (filterRTmin) & x$Target.RT < filterRTmax), digits=4)) %>% 
-  pull()
+filterRT_percentage_errors_ID = round(100*(as.numeric(x %>% tally(Target.ACC==0))/as.numeric(x %>% tally(Target.ACC %in% c(0,1)))),digits = 4) # Percentage of incorrect trials (outlier subjects excluded)
+filterRT_percentage_time_ID = round(100*(as.numeric(x %>% tally(Target.RT<filterRTmin))+as.numeric(x %>% tally(Target.RT>filterRTmax)))/as.numeric(x %>% tally(!Target.RT<0)),digits = 4) # Percentage of trials excluded after RT filter (outlier subjects excluded)
 rm(x)
 
 #### ANTI Trials ####
