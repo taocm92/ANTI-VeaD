@@ -29,7 +29,7 @@ if(!require(pacman)){install.packages("pacman")} # Install the package in case i
 
 library(pacman) #This package ("pacman") serves to install and load other packages simultaneously
 
-p_load(readxl, rockchalk, plyr, Hmisc, tidyverse) #Install and load the rest of the packages
+p_load(readxl, rockchalk, plyr, Hmisc, tidyverse, openxlsx) #Install and load the rest of the packages
 ```
 
 # Set data filters
@@ -102,12 +102,10 @@ rm(x)
 x = data_raw %>% 
   filter(!Subject %in% outliers_performance) %>%
   filter(BlockList %in% experimentalblocks, `Vigilancia[Trial]`=="NoVigilancia")
-filterRT_percentage_errors = x %>% # Percentage of incorrect trials (outlier subjects excluded)
-  summarise(round(100*sum(Target.ACC == 0)/sum(Target.ACC %>% c(0,1)), digits = 4)) %>% 
-  pull()
-filterRT_percentage_time = x %>% # Percentage of trials excluded after RT filter (outlier subjects excluded)
-  summarise(round(100*sum(!(x$Target.RT > (filterRTmin) & x$Target.RT < filterRTmax))/sum(x$Target.RT > (filterRTmin) & x$Target.RT < filterRTmax), digits=4)) %>% 
-  pull()
+filterRT_percentage_errors = round(100*(as.numeric(x %>% tally(Target.ACC==0))/as.numeric(x %>% tally(Target.ACC %in% c(0,1)))),digits = 4) # Percentage of incorrect trials (outlier subjects excluded)
+filterRT_percentage_time = round(100*(as.numeric(x %>% tally(Target.RT<filterRTmin))+as.numeric(x %>% tally(Target.RT>filterRTmax)))/as.numeric(x %>% tally(!Target.RT<0)),digits = 4) # Percentage of trials excluded after RT filter (outlier subjects excluded)
+filterRT_percentage_timefast = round(100*(as.numeric(x %>% tally(Target.RT<filterRTmin)))/as.numeric(x %>% tally(!Target.RT<0)),digits = 4) # Percentage of trials excluded after RT filter because of fast responses (i.e., RT < 200 ms; outlier subjects excluded)
+filterRT_percentage_timeslow = round(100*(as.numeric(x %>% tally(Target.RT>filterRTmax)))/as.numeric(x %>% tally(!Target.RT<0)),digits = 4) # Percentage of trials excluded after RT filter because of slow responses (i.e., RT > 1500 ms; outlier subjects excluded)
 rm(x)
 ```
 
@@ -116,12 +114,10 @@ rm(x)
 x = data_raw %>% 
   filter(!Subject %in% c(outliers_performance, outliers_performance_IDtrials)) %>%
   filter(BlockList %in% experimentalblocks, `Vigilancia[Trial]`=="DP")
-filterRT_percentage_errors_ID = x %>% # Percentage of incorrect trials (outlier subjects excluded)
-  summarise(round(100*sum(Target.ACC == 0)/sum(Target.ACC %>% c(0,1)), digits = 4)) %>% 
-  pull()
-filterRT_percentage_time_ID = x %>% # Percentage of trials excluded after RT filter (outlier subjects excluded)
-  summarise(round(100*sum(!(x$Target.RT > (filterRTmin) & x$Target.RT < filterRTmax))/sum(x$Target.RT > (filterRTmin) & x$Target.RT < filterRTmax), digits=4)) %>% 
-  pull()
+filterRT_percentage_errors_ID = round(100*(as.numeric(x %>% tally(Target.ACC==0))/as.numeric(x %>% tally(Target.ACC %in% c(0,1)))),digits = 4) # Percentage of incorrect trials (outlier subjects excluded)
+filterRT_percentage_time_ID = round(100*(as.numeric(x %>% tally(Target.RT<filterRTmin))+as.numeric(x %>% tally(Target.RT>filterRTmax)))/as.numeric(x %>% tally(!Target.RT<0)),digits = 4) # Percentage of trials excluded after RT filter (outlier subjects excluded)
+filterRT_percentage_timefast_ID = round(100*(as.numeric(x %>% tally(Target.RT<filterRTmin)))/as.numeric(x %>% tally(!Target.RT<0)),digits = 4) # Percentage of trials excluded after RT filter because of fast responses (i.e., RT < 200 ms; outlier subjects excluded)
+filterRT_percentage_timeslow_ID = round(100*(as.numeric(x %>% tally(Target.RT>filterRTmax)))/as.numeric(x %>% tally(!Target.RT<0)),digits = 4) # Percentage of trials excluded after RT filter because of slow responses (i.e., RT > 1500 ms; outlier subjects excluded)
 rm(x)
 ```
 
@@ -601,6 +597,27 @@ data_ID_table = data_ID_table %>%
   filter(!Subject %in% c(outliers_performance,outliers_performance_IDtrials)) #Removing outliers from task analyses of ID trials
 ```
 
+
+# Descriptive tables for the main task indexes
+
+```{r}
+descriptivesGeneralTask = data_processed %>% 
+  filter(Validity_GeneralTask=="Yes") %>% 
+  select(Overall_RT:AV_Lapses_Slope) %>% 
+  descriptiveTable()
+```
+
+```{r}
+descriptivesIDTrials = data_processed %>% 
+  filter(Validity_GeneralTask=="Yes", Validity_IDtrials=="Yes") %>% 
+  select(ID_zRT:Exploratory_PercentageErrorsopposite) %>% 
+  descriptiveTable()
+```
+
+```{r}
+data_processed = list(data_processed, descriptivesGeneralTask, descriptivesIDTrials)
+```
+
 # Export tables
 
 ## Export tables of task analysis
@@ -615,8 +632,9 @@ write.table(data_ID_table, "./Outputs/From_DataTaskTreatment/data_ID_table.csv",
 
 ## Export tables of task indexes 
 
-Use this file in combination with self-report scores)
+Use this file in combination with self-report scores
 
 ```{r}
-write.table(data_processed, "./Outputs/From_DataTaskTreatment/data_processed.csv", sep =",", row.names = FALSE)
+write.xlsx(data_processed, "./Outputs/From_DataTaskTreatment/data_processed.xlsx",col.names=TRUE, row.names=FALSE ,sheetName=c("BySubject","Summary_GeneralTask(n=113)","Summary_IDTrials(n=102)"), colWidths = "auto")
 ```
+

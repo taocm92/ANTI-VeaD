@@ -669,4 +669,3 @@ write.table(ID_ACC_rels, "./Outputs/From_Task_Split-half/ID_ACC_rels.csv", sep =
 r.summary_and_example = list(reliability_summary,ExampleReporting)
 write.xlsx(r.summary_and_example, "./Outputs/From_Task_Split-half/r.summary_and_example.xlsx",col.names=FALSE,sheetName=c("Reliability_Summary","Report_Example"), colWidths = "auto")
 
-
