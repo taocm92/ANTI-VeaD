@@ -103,7 +103,7 @@ get_antiRT_scores = function(yy)
 
 set.seed(1)
 antiRT_rels = ldply(
-  .data = 1:1e1
+  .data = 1:1e4
   , .fun = function(iteration){
     scores = ddply(
       .data = rt_data
@@ -188,7 +188,7 @@ get_antiACC_scores = function(yy)
 
 set.seed(1)
 antiACC_rels = ldply(
-  .data = 1:1e1
+  .data = 1:1e4
   , .fun = function(iteration){
     scores = ddply(
       .data = acc_data
@@ -293,7 +293,7 @@ get_ExecutiveVig_scores = function(yy)
 
 set.seed(1)
 ExecutiveVig_rels = ldply(
-  .data = 1:1e1 
+  .data = 1:1e4 
   , .fun = function(iteration){
     scores = ddply(
       .data = EV_data
@@ -391,7 +391,7 @@ get_ArousalVig_scores = function(yy){
 
 set.seed(1)
 ArousalVig_rels = ldply(
-  .data = 1:1e1 
+  .data = 1:1e4 
   , .fun = function(iteration){
     scores = ddply(
       .data = AV_data
@@ -474,7 +474,7 @@ get_ID_RT_scores = function(yy){
 
 set.seed(1)
 ID_RT_rels = ldply(
-  .data = 1:1e1
+  .data = 1:1e4
   , .fun = function(iteration){
     scores = ddply(
       .data = IDrt_data
@@ -554,7 +554,7 @@ get_ID_ACC_scores = function(yy){
 
 set.seed(1)
 ID_ACC_rels = ldply(
-  .data = 1:1e1
+  .data = 1:1e4
   , .fun = function(iteration){
     scores = ddply(
       .data = IDacc_data
